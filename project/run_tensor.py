@@ -11,10 +11,47 @@ def RParam(*shape):
     r = 2 * (minitorch.rand(shape) - 0.5)
     return minitorch.Parameter(r)
 
+# TODO: Implement for Task 2.5.
 
 def default_log_fn(epoch, total_loss, correct, losses):
+
     print("Epoch ", epoch, " loss ", total_loss, "correct", correct)
 
+
+class Network(minitorch.Module):
+    def __init__(self, hidden_layers: int):
+        super().__init__()
+        self.layer1 = Linear(2, hidden_layers)
+        self.layer2 = Linear(hidden_layers, hidden_layers)
+        self.layer3 = Linear(hidden_layers, 1)
+
+    def forward(self, x):
+        x = self.layer1.forward(x).relu()
+        x = self.layer2.forward(x).relu()
+        x = self.layer3.forward(x).sigmoid()
+        return x
+
+
+class Linear(minitorch.Module):
+    def __init__(self, in_size: int, out_size: int):
+        super().__init__()
+        self.in_size = in_size
+        self.out_size = out_size
+        # self.weights = minitorch.rand((in_size, out_size)) * 2 - 1
+        # self.bias = minitorch.rand((out_size,)) * 2 - 1
+
+        # self.weights = self.add_parameter("weights", self.weights)
+        # self.bias = self.add_parameter("bias", self.bias)
+
+        self.weights = RParam(in_size, out_size)
+        self.bias = RParam(out_size)
+
+    def forward(self, x):
+        # matmul brute force
+        x_transposed = x.view(x.shape[0], x.shape[1], 1)
+        out = (x_transposed * self.weights.value).sum(1) + self.bias.value
+
+        return out.view(x.shape[0], self.out_size)
 
 class TensorTrain:
     def __init__(self, hidden_layers):
@@ -53,6 +90,8 @@ class TensorTrain:
 
             # Update
             optim.step()
+
+            # print(self.model.parameters()[-1].value.grad)    # all gradients are None
 
             # Logging
             if epoch % 10 == 0 or epoch == max_epochs:

@@ -7,11 +7,22 @@ import random
 
 import minitorch
 
+from minitorch.operators import reduce
+from minitorch.scalar_functions import Add
+
 
 class Network(minitorch.Module):
-    def __init__(self, hidden_layers):
+    def __init__(self, hidden_layers: int):
+        """
+        Initializes the network with the specified size of hidden layer.
+        Args:
+            hidden_layers: the size of hidden layer.
+        """
         super().__init__()
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.5.
+        self.layer1 = Linear(2, hidden_layers)
+        self.layer2 = Linear(hidden_layers, hidden_layers)
+        self.layer3 = Linear(hidden_layers, 1)
 
     def forward(self, x):
         middle = [h.relu() for h in self.layer1.forward(x)]
@@ -20,8 +31,10 @@ class Network(minitorch.Module):
 
 
 class Linear(minitorch.Module):
-    def __init__(self, in_size, out_size):
+    def __init__(self, in_size: int, out_size: int):
         super().__init__()
+        self.in_size = in_size
+        self.out_size = out_size
         self.weights = []
         self.bias = []
         for i in range(in_size):
@@ -40,8 +53,18 @@ class Linear(minitorch.Module):
             )
 
     def forward(self, inputs):
-        raise NotImplementedError("Need to include this file from past assignment.")
-
+        """Applies a linear transformation to the input.
+        Args:
+            inputs: a list of input scalars.
+        Returns:
+            a scalar output.
+        """
+        # TODO: Implement for Task 1.5.
+        out = []
+        for i in range(self.out_size):
+            temp = [input * self.weights[j][i].value for j, input in enumerate(inputs)]
+            out.append(reduce(Add.apply, temp) + self.bias[i].value)
+        return out
 
 def default_log_fn(epoch, total_loss, correct, losses):
     print("Epoch ", epoch, " loss ", total_loss, "correct", correct)
@@ -72,7 +95,7 @@ class ScalarTrain:
             # Forward
             loss = 0
             for i in range(data.N):
-                x_1, x_2 = data.X[i]
+                x_1, x_2 = data.X[i]    # unpack the training data
                 y = data.y[i]
                 x_1 = minitorch.Scalar(x_1)
                 x_2 = minitorch.Scalar(x_2)
@@ -82,9 +105,9 @@ class ScalarTrain:
                     prob = out
                     correct += 1 if out.data > 0.5 else 0
                 else:
-                    prob = -out + 1.0
+                    prob = -out + 1.0  # reverse prob
                     correct += 1 if out.data < 0.5 else 0
-                loss = -prob.log()
+                loss = -prob.log()  # loss is a scalar as well
                 (loss / data.N).backward()
                 total_loss += loss.data
 
