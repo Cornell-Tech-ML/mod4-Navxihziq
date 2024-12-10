@@ -1,5 +1,10 @@
 from mnist import MNIST
 
+import json
+from datetime import datetime
+import time
+from pathlib import Path
+
 import minitorch
 
 mndata = MNIST("project/data/")
@@ -96,13 +101,46 @@ def make_mnist(start, stop):
     return X, ys
 
 
-def default_log_fn(epoch, total_loss, correct, total, losses, model):
-    print(f"Epoch {epoch} loss {total_loss} valid acc {correct}/{total}")
+def default_log_fn(epoch, batch, total_loss, correct, total, batch_time, start_time, file):
+    epoch_metrics = {
+        "type": "epoch",
+        "epoch": epoch,
+        "batch": batch,
+        "total_loss": float(total_loss),
+        "valid_acc": float(correct) / float(total),
+        "correct": int(correct),
+        "total": int(total),
+        "batch_time": batch_time,
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "total_training_time": time.time() - start_time,
+    }
+    # print(f"Epoch {epoch} loss {total_loss} valid acc {correct}/{total}")
+    if epoch % 100 == 0:
+        print(json.dumps(epoch_metrics, indent=2))
+    with open(file, 'a') as f:
+        vals = list(epoch_metrics.values())
+        f.write(','.join(str(v) for v in vals) + '\n')
 
 
 class ImageTrain:
     def __init__(self):
         self.model = Network()
+        # Create logs directory if it doesn't exist
+        self.logs_dir = Path("assets")
+        self.logs_dir.mkdir(exist_ok=True)
+
+        # Create a unique log file name with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_file = self.logs_dir / f"mnist_{timestamp}.csv"
+
+        # Write initial metadata
+        metadata = {
+            "type": "metadata",
+            "start_time": time.time(),
+            "start_datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        with open(self.log_file, 'w') as f:
+            f.write('type,epoch,batch,total_loss,valid_acc,correct,total,batch_time,timestamp,total_training_time\n')
 
     def run_one(self, x):
         return self.model.forward(minitorch.tensor([x], backend=BACKEND))
@@ -117,6 +155,7 @@ class ImageTrain:
         n_training_samples = len(X_train)
         optim = minitorch.SGD(self.model.parameters(), learning_rate)
         losses = []
+        start_time = time.time()
         for epoch in range(1, max_epochs + 1):
             total_loss = 0.0
 
@@ -172,7 +211,9 @@ class ImageTrain:
                                     m = out[i, j]
                             if y[i, ind] == 1.0:
                                 correct += 1
-                    log_fn(epoch, total_loss, correct, BATCH, losses, model)
+
+                    batch_time = time.time() - start_time
+                    log_fn(epoch, batch_num, total_loss, correct, BATCH, batch_time, start_time, self.log_file)
 
                     total_loss = 0.0
                     model.train()

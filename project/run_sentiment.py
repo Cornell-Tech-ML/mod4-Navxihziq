@@ -2,6 +2,10 @@ import random
 
 import embeddings
 
+import time
+from datetime import datetime
+from pathlib import Path
+
 import minitorch
 from datasets import load_dataset
 
@@ -81,7 +85,9 @@ class CNNSentimentKim(minitorch.Module):
         m1, m2, m3 = minitorch.max(conv1, 2), minitorch.max(conv2, 2), minitorch.max(conv3, 2)  # shape: [batch, feature_map_size, 1]
         max_over_time = m1 + m2 + m3    # this is so confusing and potentially wrong; shape: [batch, feature_map_size, 1]
         x = minitorch.dropout(max_over_time, self.dropout, ~self.training).view(max_over_time.shape[0], self.feature_map_size)
-        return self.linear(x).sigmoid()
+        result = self.linear(x).sigmoid()
+        import pdb; pdb.set_trace()  # Line 88: Check shape of result
+        return result
 
 
 # Evaluation helper methods
@@ -116,6 +122,8 @@ def default_log_fn(
     train_accuracy,
     validation_predictions,
     validation_accuracy,
+    start_time,
+    file
 ):
     global best_val
     best_val = (
@@ -125,11 +133,23 @@ def default_log_fn(
     if len(validation_predictions) > 0:
         print(f"Validation accuracy: {validation_accuracy[-1]:.2%}")
         print(f"Best Valid accuracy: {best_val:.2%}")
+        with open(file, 'a') as f:
+            f.write(f"train,{epoch},{train_loss},{train_accuracy[-1]:.2%},{validation_accuracy[-1]:.2%},{best_val:.2%},{datetime.now().strftime('%Y-%m-%d %H:%M:%S')},{time.time() - start_time}\n")
 
 
 class SentenceSentimentTrain:
     def __init__(self, model):
         self.model = model
+        # Create logs directory if it doesn't exist
+        self.logs_dir = Path("assets")
+        self.logs_dir.mkdir(exist_ok=True)
+
+        # Create a unique log file name with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_file = self.logs_dir / f"sentiment_{timestamp}.csv"
+
+        with open(self.log_file, 'w') as f:
+            f.write('type,epoch,train_loss,train_acc,valid_acc,best_valid_acc,timestamp,total_training_time\n')
 
     def train(
         self,
@@ -147,6 +167,7 @@ class SentenceSentimentTrain:
         losses = []
         train_accuracy = []
         validation_accuracy = []
+        start_time = time.time()
         for epoch in range(1, max_epochs + 1):
             total_loss = 0.0
 
@@ -205,6 +226,8 @@ class SentenceSentimentTrain:
                 train_accuracy,
                 validation_predictions,
                 validation_accuracy,
+                start_time,
+                self.log_file
             )
             total_loss = 0.0
 
@@ -268,7 +291,7 @@ if __name__ == "__main__":
     train_size = 450
     validation_size = 100
     learning_rate = 0.01
-    max_epochs = 250
+    max_epochs = 500
 
     (X_train, y_train), (X_val, y_val) = encode_sentiment_data(
         load_dataset("glue", "sst2"),
