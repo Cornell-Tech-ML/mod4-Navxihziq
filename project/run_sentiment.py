@@ -86,7 +86,6 @@ class CNNSentimentKim(minitorch.Module):
         max_over_time = m1 + m2 + m3    # this is so confusing and potentially wrong; shape: [batch, feature_map_size, 1]
         x = minitorch.dropout(max_over_time, self.dropout, ~self.training).view(max_over_time.shape[0], self.feature_map_size)
         result = self.linear(x).sigmoid()
-        import pdb; pdb.set_trace()  # Line 88: Check shape of result
         return result
 
 
@@ -189,6 +188,11 @@ class SentenceSentimentTrain:
                 out = model.forward(x)
                 prob = (out * y) + (out - 1.0) * (y - 1.0)
                 loss = -(prob.log() / y.shape[0]).sum()
+
+                l2_loss = 0.0
+                for param in model.parameters():
+                    l2_loss += (param.value * param.value).sum()
+                loss += l2_loss * 0.001
                 loss.view(1).backward()
 
                 # Save train predictions
@@ -291,7 +295,7 @@ if __name__ == "__main__":
     train_size = 450
     validation_size = 100
     learning_rate = 0.01
-    max_epochs = 500
+    max_epochs = 200
 
     (X_train, y_train), (X_val, y_val) = encode_sentiment_data(
         load_dataset("glue", "sst2"),

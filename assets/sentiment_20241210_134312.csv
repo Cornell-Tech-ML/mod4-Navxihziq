@@ -1,1 +1,0 @@
-type,epoch,train_loss,train_acc,valid_acc,best_valid_acc,timestamp,total_training_time
