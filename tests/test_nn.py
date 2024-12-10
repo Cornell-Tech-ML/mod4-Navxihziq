@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 from hypothesis import given
 
@@ -32,7 +33,11 @@ def test_avg(t: Tensor) -> None:
 @given(tensors(shape=(2, 3, 4)))
 def test_max(t: Tensor) -> None:
     # TODO: Implement for Task 4.4.
-    raise NotImplementedError("Need to implement for Task 4.4")
+    out = minitorch.max(t, 0)
+    assert_close(out[0, 0, 0], max([t[i, 0, 0] for i in range(2)]))
+    # break the tie to make central difference work
+    offset = Tensor.make(np.linspace(0, 0.1, 24).tolist(), (2, 3, 4), backend=t.backend)
+    minitorch.grad_check(lambda t: minitorch.max(t, 0), t + offset)
 
 
 @pytest.mark.task4_4
